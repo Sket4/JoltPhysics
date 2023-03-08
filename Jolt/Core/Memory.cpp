@@ -37,7 +37,10 @@ JPH_ALLOC_SCOPE void *JPH_ALLOC_FN(AlignedAllocate)(size_t inSize, size_t inAlig
 #elif defined(JPH_PLATFORM_ANDROID)
 	return memalign(inAlignment, AlignUp(inSize, inAlignment));
 #else
-	return std::aligned_alloc(inAlignment, AlignUp(inSize, inAlignment));
+    void* mem = 0;
+    posix_memalign(&mem, inAlignment, inSize);
+    return mem;
+    //return std::aligned_alloc(inAlignment, AlignUp(inSize, inAlignment));
 #endif
 }
 
