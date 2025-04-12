@@ -37,7 +37,7 @@ using namespace std;
 
 // Callback for traces, connect this to your own trace function if you have one
 static void TraceImpl(const char *inFMT, ...)
-{ 
+{
 	// Format the message
 	va_list list;
 	va_start(list, inFMT);
@@ -53,7 +53,7 @@ static void TraceImpl(const char *inFMT, ...)
 
 // Callback for asserts, connect this to your own assert handler if you have one
 static bool AssertFailedImpl(const char *inExpression, const char *inMessage, const char *inFile, uint inLine)
-{ 
+{
 	// Print to the TTY
 	cout << inFile << ":" << inLine << ": (" << inExpression << ") " << (inMessage != nullptr? inMessage : "") << endl;
 
@@ -69,9 +69,9 @@ static bool AssertFailedImpl(const char *inExpression, const char *inMessage, co
 // but only if you do collision testing).
 namespace Layers
 {
-	static constexpr uint8 NON_MOVING = 0;
-	static constexpr uint8 MOVING = 1;
-	static constexpr uint8 NUM_LAYERS = 2;
+	static constexpr ObjectLayer NON_MOVING = 0;
+	static constexpr ObjectLayer MOVING = 1;
+	static constexpr ObjectLayer NUM_LAYERS = 2;
 };
 
 /// Class that determines if two object layers can collide
@@ -155,7 +155,7 @@ public:
 		case Layers::NON_MOVING:
 			return inLayer2 == BroadPhaseLayers::MOVING;
 		case Layers::MOVING:
-			return true;	
+			return true;
 		default:
 			JPH_ASSERT(false);
 			return false;
@@ -187,7 +187,7 @@ public:
 	}
 
 	virtual void			OnContactRemoved(const SubShapeIDPair &inSubShapePair) override
-	{ 
+	{
 		cout << "A contact was removed" << endl;
 	}
 };
@@ -210,21 +210,25 @@ public:
 // Program entry point
 int main(int argc, char** argv)
 {
-	// Register allocation hook
+	// Register allocation hook. In this example we'll just let Jolt use malloc / free but you can override these if you want (see Memory.h).
+	// This needs to be done before any other Jolt function is called.
 	RegisterDefaultAllocator();
 
-	// Install callbacks
+	// Install trace and assert callbacks
 	Trace = TraceImpl;
 	JPH_IF_ENABLE_ASSERTS(AssertFailed = AssertFailedImpl;)
 
-	// Create a factory
+	// Create a factory, this class is responsible for creating instances of classes based on their name or hash and is mainly used for deserialization of saved data.
+	// It is not directly used in this example but still required.
 	Factory::sInstance = new Factory();
 
-	// Register all Jolt physics types
+	// Register all physics types with the factory and install their collision handlers with the CollisionDispatch class.
+	// If you have your own custom shape types you probably need to register their handlers with the CollisionDispatch before calling this function.
+	// If you implement your own default material (PhysicsMaterial::sDefault) make sure to initialize it before this function or else this function will create one for you.
 	RegisterTypes();
 
 	// We need a temp allocator for temporary allocations during the physics update. We're
-	// pre-allocating 10 MB to avoid having to do allocations during the physics update. 
+	// pre-allocating 10 MB to avoid having to do allocations during the physics update.
 	// B.t.w. 10 MB is way too much for this example but it is a typical value you can use.
 	// If you don't want to pre-allocate you can also use TempAllocatorMalloc to fall back to
 	// malloc / free.
@@ -255,14 +259,17 @@ int main(int argc, char** argv)
 
 	// Create mapping table from object layer to broadphase layer
 	// Note: As this is an interface, PhysicsSystem will take a reference to this so this instance needs to stay alive!
+	// Also have a look at BroadPhaseLayerInterfaceTable or BroadPhaseLayerInterfaceMask for a simpler interface.
 	BPLayerInterfaceImpl broad_phase_layer_interface;
 
 	// Create class that filters object vs broadphase layers
 	// Note: As this is an interface, PhysicsSystem will take a reference to this so this instance needs to stay alive!
+	// Also have a look at ObjectVsBroadPhaseLayerFilterTable or ObjectVsBroadPhaseLayerFilterMask for a simpler interface.
 	ObjectVsBroadPhaseLayerFilterImpl object_vs_broadphase_layer_filter;
 
 	// Create class that filters object vs object layers
 	// Note: As this is an interface, PhysicsSystem will take a reference to this so this instance needs to stay alive!
+	// Also have a look at ObjectLayerPairFilterTable or ObjectLayerPairFilterMask for a simpler interface.
 	ObjectLayerPairFilterImpl object_vs_object_layer_filter;
 
 	// Now we can create the actual physics system.
@@ -286,9 +293,10 @@ int main(int argc, char** argv)
 	BodyInterface &body_interface = physics_system.GetBodyInterface();
 
 	// Next we can create a rigid body to serve as the floor, we make a large box
-	// Create the settings for the collision volume (the shape). 
+	// Create the settings for the collision volume (the shape).
 	// Note that for simple shapes (like boxes) you can also directly construct a BoxShape.
 	BoxShapeSettings floor_shape_settings(Vec3(100.0f, 1.0f, 100.0f));
+	floor_shape_settings.SetEmbedded(); // A ref counted object on the stack (base class RefTarget) should be marked as such to prevent it from being freed when its reference count goes to 0.
 
 	// Create the shape
 	ShapeSettings::ShapeResult floor_shape_result = floor_shape_settings.Create();
@@ -335,11 +343,8 @@ int main(int argc, char** argv)
 		// If you take larger steps than 1 / 60th of a second you need to do multiple collision steps in order to keep the simulation stable. Do 1 collision step per 1 / 60th of a second (round up).
 		const int cCollisionSteps = 1;
 
-		// If you want more accurate step results you can do multiple sub steps within a collision step. Usually you would set this to 1.
-		const int cIntegrationSubSteps = 1;
-
 		// Step the world
-		physics_system.Update(cDeltaTime, cCollisionSteps, cIntegrationSubSteps, &temp_allocator, &job_system);
+		physics_system.Update(cDeltaTime, cCollisionSteps, &temp_allocator, &job_system);
 	}
 
 	// Remove the sphere from the physics system. Note that the sphere itself keeps all of its state and can be re-added at any time.

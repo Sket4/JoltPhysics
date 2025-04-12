@@ -17,11 +17,12 @@
 #include <Application/DebugUI.h>
 #include <Layers.h>
 #include <Utils/Log.h>
+#include <Utils/AssetStream.h>
 #include <random>
 
-JPH_IMPLEMENT_RTTI_VIRTUAL(RigPileTest) 
-{ 
-	JPH_ADD_BASE_CLASS(RigPileTest, Test) 
+JPH_IMPLEMENT_RTTI_VIRTUAL(RigPileTest)
+{
+	JPH_ADD_BASE_CLASS(RigPileTest, Test)
 }
 
 const char *RigPileTest::sScenes[] =
@@ -32,7 +33,7 @@ const char *RigPileTest::sScenes[] =
 	"Terrain2",
 };
 
-#ifdef _DEBUG
+#ifdef JPH_DEBUG
 	const char *RigPileTest::sSceneName = "PerlinMesh";
 	int RigPileTest::sPileSize = 5;
 	int RigPileTest::sNumPilesPerAxis = 2;
@@ -59,12 +60,13 @@ void RigPileTest::Initialize()
 	{
 		// Default terrain
 		CreateHeightFieldTerrain();
-	}	
+	}
 	else
 	{
 		// Load scene
 		Ref<PhysicsScene> scene;
-		if (!ObjectStreamIn::sReadObject((String("Assets/") + sSceneName + ".bof").c_str(), scene))
+		AssetStream stream(String(sSceneName) + ".bof", std::ios::in | std::ios::binary);
+		if (!ObjectStreamIn::sReadObject(stream.Get(), scene))
 			FatalError("Failed to load scene");
 		for (BodyCreationSettings &body : scene->GetBodies())
 			body.mObjectLayer = Layers::NON_MOVING;
@@ -73,14 +75,15 @@ void RigPileTest::Initialize()
 	}
 
 	// Load ragdoll
-	Ref<RagdollSettings> settings = RagdollLoader::sLoad("Assets/Human.tof", EMotionType::Dynamic);
+	Ref<RagdollSettings> settings = RagdollLoader::sLoad("Human.tof", EMotionType::Dynamic);
 
 	// Load animation
 	const int cAnimationCount = 4;
 	Ref<SkeletalAnimation> animation[cAnimationCount];
 	for (int i = 0; i < cAnimationCount; ++i)
 	{
-		if (!ObjectStreamIn::sReadObject(StringFormat("Assets/Human/Dead_Pose%d.tof", i + 1).c_str(), animation[i]))
+		AssetStream stream(StringFormat("Human/dead_pose%d.tof", i + 1), std::ios::in);
+		if (!ObjectStreamIn::sReadObject(stream.Get(), animation[i]))
 			FatalError("Could not open animation");
 	}
 
@@ -111,7 +114,7 @@ void RigPileTest::Initialize()
 			{
 				// Create ragdoll
 				Ref<Ragdoll> ragdoll = settings->CreateRagdoll(group_id++, 0, mPhysicsSystem);
-	
+
 				// Sample pose
 				SkeletonPose pose;
 				pose.SetSkeleton(settings->GetSkeleton());
@@ -136,7 +139,7 @@ void RigPileTest::Initialize()
 
 void RigPileTest::CreateSettingsMenu(DebugUI *inUI, UIElement *inSubMenu)
 {
-	inUI->CreateTextButton(inSubMenu, "Select Scene", [this, inUI]() { 
+	inUI->CreateTextButton(inSubMenu, "Select Scene", [this, inUI]() {
 		UIElement *scene_name = inUI->CreateMenu();
 		for (uint i = 0; i < size(sScenes); ++i)
 			inUI->CreateTextButton(scene_name, sScenes[i], [this, i]() { sSceneName = sScenes[i]; RestartTest(); });

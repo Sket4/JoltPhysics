@@ -11,7 +11,7 @@
 class UICheckBox : public UIStaticText
 {
 public:
-	JPH_DECLARE_RTTI_VIRTUAL(UICheckBox)
+	JPH_DECLARE_RTTI_VIRTUAL(JPH_NO_EXPORT, UICheckBox)
 
 	enum EState
 	{
@@ -20,7 +20,7 @@ public:
 	};
 
 	using ClickAction = function<void(EState)>;
-	
+
 	/// Properties
 	void				SetState(EState inState)							{ mState = inState; }
 	EState				GetState() const									{ return mState; }

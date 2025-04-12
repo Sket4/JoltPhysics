@@ -5,19 +5,26 @@
 #pragma once
 
 #include <Tests/Test.h>
-#include <Jolt/Physics/Character/CharacterBase.h>
+#include <Jolt/Physics/Character/Character.h>
+#include <Jolt/Physics/Character/CharacterVirtual.h>
 
 // Base class for the character tests, initializes the test scene.
 class CharacterBaseTest : public Test
 {
 public:
-	JPH_DECLARE_RTTI_VIRTUAL(CharacterBaseTest)
+	JPH_DECLARE_RTTI_VIRTUAL(JPH_NO_EXPORT, CharacterBaseTest)
+
+	// Destructor
+	virtual					~CharacterBaseTest() override;
 
 	// Number used to scale the terrain and camera movement to the scene
 	virtual float			GetWorldScale() const override								{ return 0.2f; }
 
 	// Initialize the test
 	virtual void			Initialize() override;
+
+	// Process input
+	virtual void			ProcessInput(const ProcessInputParams &inParams) override;
 
 	// Update the test, called before the physics update
 	virtual void			PrePhysicsUpdate(const PreUpdateParams &inParams) override;
@@ -36,6 +43,10 @@ public:
 	virtual void			SaveState(StateRecorder &inStream) const override;
 	virtual void			RestoreState(StateRecorder &inStream) override;
 
+	// Saving / restoring controller input state for replay
+	virtual void			SaveInputState(StateRecorder &inStream) const override;
+	virtual void			RestoreInputState(StateRecorder &inStream) override;
+
 protected:
 	// Get position of the character
 	virtual RVec3			GetCharacterPosition() const = 0;
@@ -46,6 +57,9 @@ protected:
 	// Draw the character state
 	void					DrawCharacterState(const CharacterBase *inCharacter, RMat44Arg inCharacterTransform, Vec3Arg inCharacterVelocity);
 
+	// Add character movement settings
+	virtual void			AddCharacterMovementSettings(DebugUI* inUI, UIElement* inSubMenu) { /* Nothing by default */ }
+
 	// Add test configuration settings
 	virtual void			AddConfigurationSettings(DebugUI *inUI, UIElement *inSubMenu) { /* Nothing by default */ }
 
@@ -54,15 +68,18 @@ protected:
 	static constexpr float	cCharacterRadiusStanding = 0.3f;
 	static constexpr float	cCharacterHeightCrouching = 0.8f;
 	static constexpr float	cCharacterRadiusCrouching = 0.3f;
+	static constexpr float	cInnerShapeFraction = 0.9f;
 
 	// Character movement properties
-	inline static bool		sControlMovementDuringJump = true;					///< If false the character cannot change movement direction in mid air
+	inline static bool		sControlMovementDuringJump = true;							///< If false the character cannot change movement direction in mid air
 	inline static float		sCharacterSpeed = 6.0f;
 	inline static float		sJumpSpeed = 4.0f;
 
 	// The different stances for the character
 	RefConst<Shape>			mStandingShape;
 	RefConst<Shape>			mCrouchingShape;
+	RefConst<Shape>			mInnerCrouchingShape;
+	RefConst<Shape>			mInnerStandingShape;
 
 	// List of boxes on ramp
 	Array<BodyID>			mRampBlocks;
@@ -73,6 +90,9 @@ protected:
 
 	// Sensor body
 	BodyID					mSensorBody;
+
+	// List of active characters in the scene so they can collide
+	CharacterVsCharacterCollisionSimple mCharacterVsCharacterCollision;
 
 private:
 	// Shape types
@@ -95,8 +115,27 @@ private:
 	// Scene time (for moving bodies)
 	float					mTime = 0.0f;
 
+	// The camera pivot, recorded before the physics update to align with the drawn world
+	RVec3					mCameraPivot = RVec3::sZero();
+
 	// Moving bodies
 	BodyID					mRotatingBody;
-	BodyID					mVerticallyMovingBody;
+	BodyID					mRotatingWallBody;
+	BodyID					mRotatingAndTranslatingBody;
+	BodyID					mSmoothVerticallyMovingBody;
+	BodyID					mReversingVerticallyMovingBody;
+	float					mReversingVerticallyMovingVelocity = 1.0f;
 	BodyID					mHorizontallyMovingBody;
+
+	// Moving characters
+	Ref<Character>			mAnimatedCharacter;
+	Ref<CharacterVirtual>	mAnimatedCharacterVirtual;
+	Ref<CharacterVirtual>	mAnimatedCharacterVirtualWithInnerBody;
+
+	// Player input
+	Vec3					mControlInput = Vec3::sZero();
+	bool					mJump = false;
+	bool					mWasJump = false;
+	bool					mSwitchStance = false;
+	bool					mWasSwitchStance = false;
 };

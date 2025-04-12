@@ -12,7 +12,6 @@
 #include <Jolt/Physics/Collision/CollideConvexVsTriangles.h>
 #include <Jolt/Physics/Collision/CollideSphereVsTriangles.h>
 #include "Layers.h"
-#include "PhysicsTestContext.h"
 
 TEST_SUITE("ConvexVsTrianglesTest")
 {
@@ -28,11 +27,11 @@ TEST_SUITE("ConvexVsTrianglesTest")
 		Vec3 v1(0, 0, 0);
 		Vec3 v2(0, 0, cEdgeLength);
 		Vec3 v3(cEdgeLength, 0, 0);
-				
+
 		{
 			// Collide sphere
 			AllHitCollisionCollector<CollideShapeCollector> collector;
-			Collider collider(sphere, Vec3::sReplicate(1.0f), Vec3::sReplicate(1.0f), Mat44::sTranslation(inCenter), Mat44::sIdentity(), SubShapeID(), inSettings, collector);
+			Collider collider(sphere, Vec3::sOne(), Vec3::sOne(), Mat44::sTranslation(inCenter), Mat44::sIdentity(), SubShapeID(), inSettings, collector);
 			collider.Collide(v1, v2, v3, inActiveEdges, SubShapeID());
 			CHECK(!collector.HadHit());
 		}
@@ -46,7 +45,7 @@ TEST_SUITE("ConvexVsTrianglesTest")
 
 			// Collide sphere
 			AllHitCollisionCollector<CollideShapeCollector> collector;
-			context.GetSystem()->GetNarrowPhaseQuery().CollideShape(sphere, Vec3::sReplicate(1.0f), RMat44::sTranslation(RVec3(inCenter)), inSettings, RVec3::sZero(), collector);
+			context.GetSystem()->GetNarrowPhaseQuery().CollideShape(sphere, Vec3::sOne(), RMat44::sTranslation(RVec3(inCenter)), inSettings, RVec3::sZero(), collector);
 			CHECK(!collector.HadHit());
 		}
 
@@ -61,7 +60,7 @@ TEST_SUITE("ConvexVsTrianglesTest")
 
 			// Collide sphere
 			AllHitCollisionCollector<CollideShapeCollector> collector;
-			context.GetSystem()->GetNarrowPhaseQuery().CollideShape(sphere, Vec3::sReplicate(1.0f), RMat44::sTranslation(RVec3(inCenter)), inSettings, RVec3::sZero(), collector);
+			context.GetSystem()->GetNarrowPhaseQuery().CollideShape(sphere, Vec3::sOne(), RMat44::sTranslation(RVec3(inCenter)), inSettings, RVec3::sZero(), collector);
 			CHECK(!collector.HadHit());
 		}
 	}
@@ -85,7 +84,7 @@ TEST_SUITE("ConvexVsTrianglesTest")
 
 		// The transform for the sphere
 		Mat44 sphere_transform = transform * Mat44::sTranslation(inCenter);
-		
+
 		// Transform incoming settings
 		CollideShapeSettings settings = inSettings;
 		settings.mActiveEdgeMovementDirection = transform.Multiply3x3(inSettings.mActiveEdgeMovementDirection);
@@ -98,7 +97,7 @@ TEST_SUITE("ConvexVsTrianglesTest")
 
 			// Collide sphere
 			AllHitCollisionCollector<CollideShapeCollector> collector;
-			Collider collider(sphere, Vec3::sReplicate(1.0f), Vec3::sReplicate(1.0f), sphere_transform, transform, sub_shape_id1, settings, collector);
+			Collider collider(sphere, Vec3::sOne(), Vec3::sOne(), sphere_transform, transform, sub_shape_id1, settings, collector);
 			collider.Collide(v1, v2, v3, inActiveEdges, sub_shape_id2);
 
 			// Test result
@@ -126,7 +125,7 @@ TEST_SUITE("ConvexVsTrianglesTest")
 
 			// Collide sphere
 			AllHitCollisionCollector<CollideShapeCollector> collector;
-			context.GetSystem()->GetNarrowPhaseQuery().CollideShape(sphere, Vec3::sReplicate(1.0f), RMat44(sphere_transform), settings, RVec3::sZero(), collector);
+			context.GetSystem()->GetNarrowPhaseQuery().CollideShape(sphere, Vec3::sOne(), RMat44(sphere_transform), settings, RVec3::sZero(), collector);
 
 			// Test result
 			CHECK(collector.mHits.size() == 1);
@@ -155,7 +154,7 @@ TEST_SUITE("ConvexVsTrianglesTest")
 
 			// Collide sphere
 			AllHitCollisionCollector<CollideShapeCollector> collector;
-			context.GetSystem()->GetNarrowPhaseQuery().CollideShape(sphere, Vec3::sReplicate(1.0f), RMat44(sphere_transform), settings, RVec3::sZero(), collector);
+			context.GetSystem()->GetNarrowPhaseQuery().CollideShape(sphere, Vec3::sOne(), RMat44(sphere_transform), settings, RVec3::sZero(), collector);
 
 			// Test result
 			CHECK(collector.mHits.size() == 1);
@@ -197,7 +196,7 @@ TEST_SUITE("ConvexVsTrianglesTest")
 			CollideShapeSettings settings_no_bf;
 			settings_no_bf.mBackFaceMode = EBackFaceMode::IgnoreBackFaces;
 
-			// Settings with max seperation distance
+			// Settings with max separation distance
 			CollideShapeSettings settings_max_distance;
 			settings_max_distance.mBackFaceMode = EBackFaceMode::CollideWithBackFaces;
 			settings_max_distance.mMaxSeparationDistance = cMaxSeparationDistance;
@@ -266,7 +265,7 @@ TEST_SUITE("ConvexVsTrianglesTest")
 				sCheckCollisionNoHit<Collider>(settings_no_bf, sphere_center, cRadius, active_edges);
 			}
 
-			// Loop over possibel active edge movement direction permutations
+			// Loop over possible active edge movement direction permutations
 			for (int movement_direction = 0; movement_direction < 3; ++movement_direction)
 			{
 				switch (movement_direction)
@@ -286,7 +285,7 @@ TEST_SUITE("ConvexVsTrianglesTest")
 					settings.mActiveEdgeMovementDirection = Vec3(0, 1, 0);
 					break;
 				}
-		
+
 				{
 					// Hit edge 1
 					Vec3 expected2(0, 0, 0.5f * cEdgeLength);

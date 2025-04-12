@@ -27,6 +27,7 @@ using namespace JPH;
 #define DOCTEST_CONFIG_NO_WINDOWS_SEH
 
 JPH_SUPPRESS_WARNINGS_STD_BEGIN
+JPH_CLANG_16_PLUS_SUPPRESS_WARNING("-Wunsafe-buffer-usage")
 #include "doctest.h"
 JPH_SUPPRESS_WARNINGS_STD_END
 
@@ -170,7 +171,7 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
-    CoreApplication::Run(make<App>());
+	CoreApplication::Run(make<App>());
 }
 
 #elif !defined(JPH_PLATFORM_ANDROID)
@@ -229,7 +230,7 @@ struct LogReporter : public ConsoleReporter
 	void func(type arg) override								\
 	{															\
 		ConsoleReporter::func(arg);								\
-		string str = mStream.str();								\
+		std::string str = mStream.str();						\
 		if (!str.empty())										\
 			__android_log_write(ANDROID_LOG_INFO, "Jolt", str.c_str());	\
 		mStream.str("");										\
@@ -303,17 +304,17 @@ void AndroidInitialize(android_app *inApp)
 			break;
 		}
 
-        case AHARDWAREBUFFER_FORMAT_R5G6B5_UNORM:
-        {
-            uint16 color_u16 = (color.b >> 3) + ((color.g >> 2) << 5) + ((color.r >> 3) << 11);
-            for (int y = 0; y < buffer.height; ++y)
-            {
-                uint16 *dest = (uint16 *) ((uint8 *) buffer.bits + y * buffer.stride * sizeof(uint16));
-                for (int x = 0; x < buffer.width; ++x)
-                    *dest++ = color_u16;
-            }
-            break;
-        }
+		case AHARDWAREBUFFER_FORMAT_R5G6B5_UNORM:
+		{
+			uint16 color_u16 = (color.b >> 3) + ((color.g >> 2) << 5) + ((color.r >> 3) << 11);
+			for (int y = 0; y < buffer.height; ++y)
+			{
+				uint16 *dest = (uint16 *) ((uint8 *) buffer.bits + y * buffer.stride * sizeof(uint16));
+				for (int x = 0; x < buffer.width; ++x)
+					*dest++ = color_u16;
+			}
+			break;
+		}
 
 		default:
 			// TODO implement

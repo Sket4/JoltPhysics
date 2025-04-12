@@ -10,14 +10,14 @@
 class SwingTwistConstraintFrictionTest : public Test
 {
 public:
-	JPH_DECLARE_RTTI_VIRTUAL(SwingTwistConstraintFrictionTest)
+	JPH_DECLARE_RTTI_VIRTUAL(JPH_NO_EXPORT, SwingTwistConstraintFrictionTest)
 
 	// See: Test
 	virtual void			Initialize() override;
 	virtual void			PrePhysicsUpdate(const PreUpdateParams &inParams) override;
 	virtual void			SaveState(StateRecorder &inStream) const override;
 	virtual void			RestoreState(StateRecorder &inStream) override;
-	
+
 private:
 	float					mTime = 0.0f;
 	SwingTwistConstraint *	mConstraint = nullptr;

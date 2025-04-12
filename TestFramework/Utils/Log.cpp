@@ -8,17 +8,39 @@
 
 // Trace to TTY
 void TraceImpl(const char *inFMT, ...)
-{ 
+{
 	// Format the message
 	va_list list;
 	va_start(list, inFMT);
 	char buffer[1024];
 	vsnprintf(buffer, sizeof(buffer), inFMT, list);
 	va_end(list);
-	strcat_s(buffer, "\n");
 
+#ifdef JPH_PLATFORM_WINDOWS
 	// Log to the output window
-	OutputDebugStringA(buffer); 
+	strcat_s(buffer, "\n");
+	OutputDebugStringA(buffer);
+#else
+	// Log to the console
+	printf("%s\n", buffer);
+#endif
+
+}
+
+void Alert(const char *inFMT, ...)
+{
+	// Format the message
+	va_list list;
+	va_start(list, inFMT);
+	char buffer[1024];
+	vsnprintf(buffer, sizeof(buffer), inFMT, list);
+	va_end(list);
+
+	Trace("Alert: %s", buffer);
+
+#ifdef JPH_PLATFORM_WINDOWS
+	MessageBoxA(nullptr, buffer, "Alert", MB_OK);
+#endif // JPH_PLATFORM_WINDOWS
 }
 
 void FatalError [[noreturn]] (const char *inFMT, ...)
@@ -28,9 +50,12 @@ void FatalError [[noreturn]] (const char *inFMT, ...)
 	va_start(list, inFMT);
 	char buffer[1024];
 	vsnprintf(buffer, sizeof(buffer), inFMT, list);
+	va_end(list);
 
 	Trace("Fatal Error: %s", buffer);
 
+#ifdef JPH_PLATFORM_WINDOWS
 	MessageBoxA(nullptr, buffer, "Fatal Error", MB_OK);
+#endif // JPH_PLATFORM_WINDOWS
 	exit(1);
 }

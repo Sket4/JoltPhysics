@@ -30,6 +30,7 @@ JPH_SUPPRESS_WARNINGS_STD_BEGIN
 #include <chrono>
 #include <memory>
 #include <cstdarg>
+#include <filesystem>
 JPH_SUPPRESS_WARNINGS_STD_END
 
 using namespace JPH;
@@ -43,6 +44,9 @@ JPH_SUPPRESS_WARNINGS
 #include "RagdollScene.h"
 #include "ConvexVsMeshScene.h"
 #include "PyramidScene.h"
+#include "LargeMeshScene.h"
+#include "CharacterVirtualScene.h"
+#include "MaxBodiesScene.h"
 
 // Time step for physics
 constexpr float cDeltaTime = 1.0f / 60.0f;
@@ -74,7 +78,11 @@ int main(int argc, char** argv)
 	RegisterDefaultAllocator();
 
 	// Helper function that creates the default scene
-	auto create_ragdoll_scene = []{ return unique_ptr<PerformanceTestScene>(new RagdollScene(JPH_IF_DEBUG(2) JPH_IF_NOT_DEBUG(4), JPH_IF_DEBUG(5) JPH_IF_NOT_DEBUG(10), 0.6f)); };
+#ifdef JPH_OBJECT_STREAM
+	auto create_ragdoll_scene = []{ return unique_ptr<PerformanceTestScene>(new RagdollScene(4, 10, 0.6f)); };
+#else
+	auto create_ragdoll_scene = []{ return unique_ptr<PerformanceTestScene>(new ConvexVsMeshScene); };
+#endif // JPH_OBJECT_STREAM
 
 	// Parse command line parameters
 	int specified_quality = -1;
@@ -100,12 +108,20 @@ int main(int argc, char** argv)
 			// Parse scene
 			if (strcmp(arg + 3, "Ragdoll") == 0)
 				scene = create_ragdoll_scene();
+#ifdef JPH_OBJECT_STREAM
 			else if (strcmp(arg + 3, "RagdollSinglePile") == 0)
-				scene = unique_ptr<PerformanceTestScene>(new RagdollScene(1, JPH_IF_DEBUG(20) JPH_IF_NOT_DEBUG(160), 0.4f));
+				scene = unique_ptr<PerformanceTestScene>(new RagdollScene(1, 160, 0.4f));
+#endif // JPH_OBJECT_STREAM
 			else if (strcmp(arg + 3, "ConvexVsMesh") == 0)
 				scene = unique_ptr<PerformanceTestScene>(new ConvexVsMeshScene);
 			else if (strcmp(arg + 3, "Pyramid") == 0)
 				scene = unique_ptr<PerformanceTestScene>(new PyramidScene);
+			else if (strcmp(arg + 3, "LargeMesh") == 0)
+				scene = unique_ptr<PerformanceTestScene>(new LargeMeshScene);
+			else if (strcmp(arg + 3, "CharacterVirtual") == 0)
+				scene = unique_ptr<PerformanceTestScene>(new CharacterVirtualScene);
+			else if (strcmp(arg + 3, "MaxBodies") == 0)
+				scene = unique_ptr<MaxBodiesScene>(new MaxBodiesScene);
 			else
 			{
 				Trace("Invalid scene");
@@ -202,20 +218,51 @@ int main(int argc, char** argv)
 	// Register all Jolt physics types
 	RegisterTypes();
 
-	// Create temp allocator
-	TempAllocatorImpl temp_allocator(32 * 1024 * 1024);
-
-	// Load the scene
-	if (scene == nullptr)
-		scene = create_ragdoll_scene();
-	if (!scene->Load())
-		return 1;
-
 	// Show used instruction sets
 	Trace(GetConfigurationString());
 
+	// If no scene was specified use the default scene
+	if (scene == nullptr)
+		scene = create_ragdoll_scene();
+
 	// Output scene we're running
 	Trace("Running scene: %s", scene->GetName());
+
+	// Create temp allocator
+	TempAllocatorImpl temp_allocator(scene->GetTempAllocatorSizeMB() * 1024 * 1024);
+
+	// Find the asset path
+	bool found = false;
+	filesystem::path asset_path(argv[0]);
+	filesystem::path root_path = asset_path.root_path();
+	while (asset_path != root_path)
+	{
+		asset_path = asset_path.parent_path();
+		if (filesystem::exists(asset_path / "Assets"))
+		{
+			found = true;
+			break;
+		}
+	}
+	if (!found) // Note that argv[0] can be a relative path like './PerformanceTest' so we also scan up using '..'
+		for (int i = 0; i < 5; ++i)
+		{
+			asset_path /= "..";
+			if (filesystem::exists(asset_path / "Assets"))
+			{
+				found = true;
+				break;
+			}
+		}
+	if (!found)
+		asset_path = "Assets";
+	else
+		asset_path /= "Assets";
+	asset_path /= "";
+
+	// Load the scene
+	if (!scene->Load(String(asset_path.string())))
+		return 1;
 
 	// Create mapping table from object layer to broadphase layer
 	BPLayerInterfaceImpl broad_phase_layer_interface;
@@ -262,7 +309,7 @@ int main(int argc, char** argv)
 
 				// Create physics system
 				PhysicsSystem physics_system;
-				physics_system.Init(10240, 0, 65536, 20480, broad_phase_layer_interface, object_vs_broadphase_layer_filter, object_vs_object_layer_filter);
+				physics_system.Init(scene->GetMaxBodies(), 0, scene->GetMaxBodyPairs(), scene->GetMaxContactConstraints(), broad_phase_layer_interface, object_vs_broadphase_layer_filter, object_vs_object_layer_filter);
 
 				// Start test scene
 				scene->StartTest(physics_system, motion_quality);
@@ -326,8 +373,11 @@ int main(int argc, char** argv)
 					// Start measuring
 					chrono::high_resolution_clock::time_point clock_start = chrono::high_resolution_clock::now();
 
+					// Update the test
+					scene->UpdateTest(physics_system, temp_allocator, cDeltaTime);
+
 					// Do a physics step
-					physics_system.Update(cDeltaTime, 1, 1, &temp_allocator, &job_system);
+					physics_system.Update(cDeltaTime, 1, &temp_allocator, &job_system);
 
 					// Stop measuring
 					chrono::high_resolution_clock::time_point clock_end = chrono::high_resolution_clock::now();
@@ -364,14 +414,14 @@ int main(int argc, char** argv)
 
 						// Write to file
 						string data = recorder.GetData();
-						size_t size = data.size();
+						uint32 size = uint32(data.size());
 						record_state_file.write((char *)&size, sizeof(size));
 						record_state_file.write(data.data(), size);
 					}
 					else if (validate_state)
 					{
 						// Read state
-						size_t size = 0;
+						uint32 size = 0;
 						validate_state_file.read((char *)&size, sizeof(size));
 						string data;
 						data.resize(size);
@@ -412,6 +462,9 @@ int main(int argc, char** argv)
 					Quat rot = bi.GetRotation(id);
 					hash = HashBytes(&rot, sizeof(Quat), hash);
 				}
+
+				// Let the scene hash its own state
+				scene->UpdateHash(hash);
 
 				// Convert hash to string
 				stringstream hash_stream;
