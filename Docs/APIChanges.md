@@ -4,6 +4,31 @@ This document lists all breaking API changes by date and by release tag. Note th
 
 Changes that make some state saved through SaveBinaryState from a prior version of the library unreadable by the new version is marked as *SBS*. See [Saving Shapes](https://jrouwe.github.io/JoltPhysics/#saving-shapes) for further information.
 
+## Changes between v5.6.0 and latest
+* 20260905 - Removed support for using `std::vector` instead of `JPH::Array` (define `JPH_USE_STD_VECTOR`). This is a pretty obscure build option and not worth the continous testing needed to support it. (d52033ace5a33341985634d7bec5f7b1c4dec3ad)
+* 20260728 - Removed `PhysicsSettings::mDeterministicSimulation`. Turning this off has negative impact on stacking. The simulation is now always deterministic. (a5d1034b0760ba68f58fd80872635272e544b898)
+
+## Changes between v5.5.0 and v5.6.0
+
+* 20260531 - Changed the friction model. The simulation changed slightly because of this (obviously the effects accumulate over time). `EstimateCollisionResponse` now returns 2 linear and 1 angular friction impulse instead of per contact point friction impulse. (0f58921ed9b42f3296d37163d7e1b69903175741)
+* 20260506 - Renamed `CharacterVirtual::Contact` to `CharacterContact` and `CharacterVirtual::ContactKey` to `CharacterContactKey`. `CharacterContactListener` will now receive a full `CharacterContact` instead of just a few parameters. Beware that the old `inContactNormal` parameter needs to be replaced with `-inContact.mContactNormal`. (94bfc55c0ae9abb80f80897c6be08aa1415288cb)
+* 20260410 - Fixed contact callbacks for body with motion quality LinearCast vs a soft body. Previously, the contacts would be reported accidentally through the regular ContactListener. Now they're properly reported through the SoftBodyContactListener. (63765d19bae439ea4a9f93d186d6f1d94029229b)
+* 20260307 - *SBS* - Added support for HeightFieldShapeSettings::mBitsPerSample > 8 which adds 1 byte to the binary serialization format and renders it incompatible with previous saved data. (449b645b71a7a47aa0d7bdcb5f9c197f1ddff5b0)
+* 20253012 - Added interface to run compute shaders on the GPU with implementations for DX12, Vulkan and Metal. These interfaces can be disabled by setting JPH_USE_DX12, JPH_USE_VK and JPH_USE_MTL to OFF. To build on macOS, you'll need to have dxc and spirv-cross installed. The easiest way to install them is by installing the Vulkan SDK. (5ac132df689fbf88da618181b0f1f73fca8bb1b4)
+
+## Changes between v5.4.0 and v5.5.0
+
+* 20251206 - Renamed `JPH_CPU_ADDRESS_BITS` to `JPH_CPU_ARCH_BITS` because the size of a pointer can be different from the number of bits used by the architecture. (db654de2a6098fd1ad78cb9a3e70f6a8a61c00b5)
+* 20251120 - Added BroadPhaseQuery::GetBounds, deprecated PhysicsSystem::GetBounds. (793b3a0dbd978552cc6bf68db1c473b32e8ba1ef)
+
+## Changes between v5.3.0 and v5.4.0
+
+* 20240529 - *SBS* - Added `SoftBodyCreationSettings::mFacesDoubleSided` which treats the faces of the soft body as double sided. This changes the binary serialization format. (3ad037b9262ba81bf7ceda10687f2a07da38f091)
+* 20240529 - *SBS* - WheelSettingsTV and WheelSettingsWV were not serializing their base class members. This changes the binary serialization format. (cfefdc669291bd25dd168af95fb32515cc05a78b)
+* 20250523 - *SBS* - `SoftBodySharedSettings::mVertexRadius` was moved to `SoftBodyCreationSettings::mVertexRadius`, this also changes the serialization format of soft bodies. (f3d906f8c0a07a6993ecb2ff962c892a04843daa)
+* 20250505 - The remap tables in `SoftBodySharedSettings::OptimizationResults` mapped from new to old index instead of from old to new as was documented. The maps now behave as documented. (1ee6eb2f059dab839b0bde02b3c455a7bd24e533)
+* 20250505 - *SBS* - The `SoftBodySharedSettings` binary serialization format changed. (1ee6eb2f059dab839b0bde02b3c455a7bd24e533)
+
 ## Changes between v5.2.0 and v5.3.0
 
 * 20250131 - `PhysicsSettings::mManifoldToleranceSq` is no longer squared and now called `mManifoldTolerance`. `ManifoldBetweenTwoFaces` now takes `inMaxContactDistance` instead of `inMaxContactDistanceSq`. (7611a4cb33b15fcb9108794ecb6fc5090470a438)
